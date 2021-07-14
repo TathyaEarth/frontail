@@ -7,6 +7,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" type="text/css" href="__PATH__/styles/__THEME__.css">
     <link rel="icon" href="__PATH__/favicon.ico">
+    <script src="__PATH__/socket.io/socket.io.js"></script>
+    <script src="__PATH__/tinycon.min.js"></script>
+    <script src="__PATH__/ansi_up.js"></script>
+    <script src="__PATH__/app.js"></script>
+    <script>
+        var socket;
+    </script>
+    <script>
+        function handleProcess(value){
+            try{
+            socket.close()
+            }
+            catch {}
+            socket = new io.connect(`/${value}`,{
+                    path: '__PATH__/socket.io',
+                    query: 'ns='+value,
+                    transports: ['websocket'],
+                    forceNew : true
+                    });
+
+            const elements = document.getElementsByClassName('line');
+            while(elements.length > 0){
+                elements[0].parentNode.removeChild(elements[0]);
+            }
+
+            App.init({
+            socket: socket,
+            container: document.getElementsByClassName('log')[0],
+            filterInput: document.getElementsByClassName('query')[0],
+            pauseBtn: document.getElementsByClassName('btn-pause')[0],
+            topbar: document.getElementsByClassName('topbar')[0],
+            body: document.getElementsByTagName('body')[0]
+            });
+        }
+    </script>
 </head>
 
 <body>
@@ -23,6 +58,12 @@
                     <form class="navbar-form-custom" role="search" onkeypress="return event.keyCode != 13;">
                         <input type="text" class="form-control query" placeholder="Filter" tabindex="1">
                     </form>
+                    <form class="navbar-form-custom">
+                        <label style="color:white" for="processes">Select a process:</label>
+                        <select name="processes" id="processes" onChange="handleProcess(this.value)">
+                        <option value="" selected disabled hidden>Choose here</option>
+                        </select>
+                    </form>
                 </div>
             </div>
         </div>
@@ -31,26 +72,23 @@
     <div class="container-fluid no-horiz-padding">
         <pre class="log"></pre>
     </div>
-
-
-    <script src="__PATH__/socket.io/socket.io.js"></script>
-    <script src="__PATH__/tinycon.min.js"></script>
-    <script src="__PATH__/ansi_up.js"></script>
-    <script src="__PATH__/app.js"></script>
-    <script type="text/javascript">
-        var socket = new io.connect('/__NAMESPACE__', {
-            path: '__PATH__/socket.io',
-            transports: ['websocket']
-        });
-
-        window.load = App.init({
-            socket: socket,
-            container: document.getElementsByClassName('log')[0],
-            filterInput: document.getElementsByClassName('query')[0],
-            pauseBtn: document.getElementsByClassName('btn-pause')[0],
-            topbar: document.getElementsByClassName('topbar')[0],
-            body: document.getElementsByTagName('body')[0]
-        });
+    <script>
+        function getProcess(){
+            var xmlHttp = new XMLHttpRequest();
+            xmlHttp.open( "GET", 'http://127.0.0.1:8000/api/process/list', false );
+            xmlHttp.send( null );
+            var select = document.getElementById("processes")
+            var process_json = JSON.parse(xmlHttp.responseText)['data'];
+            for(var i of process_json){
+                var option = document.createElement('option')
+                option.value = i['logfile']
+                option.text = i['name']
+                select.appendChild(option)
+            }
+        }
+    </script>
+    <script>
+        window.onload = getProcess();
     </script>
 </body>
 
