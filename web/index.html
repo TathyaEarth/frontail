@@ -16,13 +16,17 @@
     </script>
     <script>
         function handleProcess(value){
+            var buffer = document.getElementById("buffervalue").value
             try{
             socket.close()
             }
             catch {}
             socket = new io.connect(`/${value}`,{
                     path: '__PATH__/socket.io',
-                    query: 'ns='+value,
+                    query: {
+                        ns: value,
+                        buffer: buffer,
+                        },
                     transports: ['websocket'],
                     forceNew : true
                     });
@@ -63,6 +67,7 @@
                         <select name="processes" id="processes" onChange="handleProcess(this.value)">
                         <option value="" selected disabled hidden>Choose here</option>
                         </select>
+                        <input type="hidden" name="buffervalue" id="buffervalue" value="50">
                     </form>
                 </div>
             </div>
@@ -75,7 +80,7 @@
     <script>
         function getProcess(){
             var xmlHttp = new XMLHttpRequest();
-            xmlHttp.open( "GET", 'http://127.0.0.1:8000/api/process/list', false );
+            xmlHttp.open( "GET", '/api/process/list', false );
             xmlHttp.send( null );
             var select = document.getElementById("processes")
             var process_json = JSON.parse(xmlHttp.responseText)['data'];

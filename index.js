@@ -49,10 +49,12 @@ const io = new SocketIO({ path: `${urlPath}/socket.io` });
 var tailerObj = {}
 
 io.on('connection', (socket) => {
+
           var ns = url.parse(socket.handshake.url, true).query.ns;
+          var buffer = parseInt(url.parse(socket.handshake.url, true).query.buffer)
           if(!(ns in tailerObj)){
             tailerObj[ns] = tail([ns], {
-              buffer: program.number,
+              buffer: buffer,
             });
 
             tailerObj[ns].on('line', (line) => {
@@ -62,8 +64,6 @@ io.on('connection', (socket) => {
 
           io.of(`/${ns}`).on('connection', function (socket) {
             
-            socket.emit('welcome',ns)
-
             socket.emit('options:lines', program.lines);
 
             if (program.uiHideTopbar) {
