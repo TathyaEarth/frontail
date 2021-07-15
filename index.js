@@ -14,14 +14,7 @@ const serverBuilder = require('./lib/server_builder');
 const daemonize = require('./lib/daemonize');
 const usageStats = require('./lib/stats');
 
-
-const express = require('express');
-const bodyParser = require('body-parser');
-const app = express();
 const url = require('url');
-
-
-var cors = require('cors');
 
 
 program.parse(process.argv);
@@ -92,18 +85,6 @@ if (doSecure) {
   builder.secure(program.key, program.certificate);
 }
 
-const corsOpts = {
-  origin: '*',
-
-  methods: [
-    'GET',
-    'POST',
-  ],
-
-  allowedHeaders: [
-    'Content-Type',
-  ],
-};
 
 /**
  * Validate params
