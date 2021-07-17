@@ -45,8 +45,9 @@ io.on('connection', (socket) => {
 
           var ns = url.parse(socket.handshake.url, true).query.ns;
           var buffer = parseInt(url.parse(socket.handshake.url, true).query.buffer)
+          var fullPath = url.parse(socket.handshake.url, true).query.fullPath
           if(!(ns in tailerObj)){
-            tailerObj[ns] = tail([ns], {
+            tailerObj[ns] = tail([fullPath], {
               buffer: buffer,
             });
 

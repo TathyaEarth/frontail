@@ -2,11 +2,11 @@
 <html>
 
 <head>
-    <title>tail -f __TITLE__</title>
+    <title>Tathya.earth - Process Monitoring</title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" type="text/css" href="__PATH__/styles/__THEME__.css">
-    <link rel="icon" href="__PATH__/favicon.ico">
+    <link rel="icon" href="/static/favicon.ico">
     <script src="__PATH__/socket.io/socket.io.js"></script>
     <script src="__PATH__/tinycon.min.js"></script>
     <script src="__PATH__/ansi_up.js"></script>
@@ -15,17 +15,19 @@
         var socket;
     </script>
     <script>
-        function handleProcess(value){
+        function handleProcess(fullPath){
             var buffer = document.getElementById("buffervalue").value
+            var filename = fullPath.replace(/^.*[\\\/]/, '')
             try{
             socket.close()
             }
             catch {}
-            socket = new io.connect(`/${value}`,{
+            socket = new io.connect(`/${filename}`,{
                     path: '__PATH__/socket.io',
                     query: {
-                        ns: value,
+                        ns: filename,
                         buffer: buffer,
+                        fullPath: fullPath
                         },
                     transports: ['websocket'],
                     forceNew : true
