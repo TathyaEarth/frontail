@@ -4,7 +4,7 @@ const cookie = require('cookie');
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
 const path = require('path');
-const { Server } = require('socket.io');
+const SocketIO = require('socket.io');
 const fs = require('fs');
 const untildify = require('untildify');
 const tail = require('./lib/tail');
@@ -14,31 +14,82 @@ const serverBuilder = require('./lib/server_builder');
 const daemonize = require('./lib/daemonize');
 const usageStats = require('./lib/stats');
 
-/**
- * Parse args
- */
+const url = require('url');
+
+
 program.parse(process.argv);
-if (program.args.length === 0) {
-  console.error('Arguments needed, use --help');
-  process.exit();
-}
 
 /**
  * Init usage statistics
  */
-const stats = usageStats(!program.disableUsageStats, program);
-stats.track('runtime', 'init');
-stats.time('runtime', 'runtime');
+ const stats = usageStats(!program.disableUsageStats, program);
+ stats.track('runtime', 'init');
+ stats.time('runtime', 'runtime');
+
+const doAuthorization = !!(program.user && program.password);
+const doSecure = !!(program.key && program.certificate);
+const sessionSecret = String(+new Date()) + Math.random();
+var files = program.args.join(' ');
+var filesNamespace = crypto.createHash('md5').update(files).digest('hex');
+const urlPath = program.urlPath.replace(/\/$/, ''); // remove trailing slash
+
+const appBuilder = connectBuilder(urlPath);
+
+const builder = serverBuilder();
+
+const io = new SocketIO({ path: `${urlPath}/socket.io` });
+
+var tailerObj = {}
+
+io.on('connection', (socket) => {
+
+          var ns = url.parse(socket.handshake.url, true).query.ns;
+          var buffer = parseInt(url.parse(socket.handshake.url, true).query.buffer)
+          var fullPath = url.parse(socket.handshake.url, true).query.fullPath
+          if(!(ns in tailerObj)){
+            tailerObj[ns] = tail([fullPath], {
+              buffer: buffer,
+            });
+
+            tailerObj[ns].on('line', (line) => {
+              io.of(`/${ns}`).emit('line', line);
+              });
+          }
+
+          io.of(`/${ns}`).on('connection', function (socket) {
+            
+            socket.emit('options:lines', program.lines);
+
+            if (program.uiHideTopbar) {
+              socket.emit('options:hide-topbar');
+            }
+
+            if (!program.uiIndent) {
+              socket.emit('options:no-indent');
+            }
+
+            if (program.uiHighlight) {
+              socket.emit('options:highlightConfig', highlightConfig);
+            }
+
+
+            tailerObj[ns].getBuffer().forEach((line) => {
+              socket.emit('line', line);
+            });
+
+            
+          });
+  });
+
+
+if (doSecure) {
+  builder.secure(program.key, program.certificate);
+}
+
 
 /**
  * Validate params
  */
-const doAuthorization = !!(program.user && program.password);
-const doSecure = !!(program.key && program.certificate);
-const sessionSecret = String(+new Date()) + Math.random();
-const files = program.args.join(' ');
-const filesNamespace = crypto.createHash('md5').update(files).digest('hex');
-const urlPath = program.urlPath.replace(/\/$/, ''); // remove trailing slash
 
 if (program.daemonize) {
   daemonize(__filename, program, {
@@ -49,7 +100,7 @@ if (program.daemonize) {
   /**
    * HTTP(s) server setup
    */
-  const appBuilder = connectBuilder(urlPath);
+  
   if (doAuthorization) {
     appBuilder.session(sessionSecret);
     appBuilder.authorize(program.user, program.password);
@@ -63,10 +114,7 @@ if (program.daemonize) {
       program.theme
     );
 
-  const builder = serverBuilder();
-  if (doSecure) {
-    builder.secure(program.key, program.certificate);
-  }
+
   const server = builder
     .use(appBuilder.build())
     .port(program.port)
@@ -76,7 +124,6 @@ if (program.daemonize) {
   /**
    * socket.io setup
    */
-  const io = new Server({ path: `${urlPath}/socket.io` });
   io.attach(server);
 
   if (doAuthorization) {
@@ -125,36 +172,13 @@ if (program.daemonize) {
   /**
    * When connected send starting data
    */
-  const tailer = tail(program.args, {
-    buffer: program.number,
-  });
 
-  const filesSocket = io.of(`/${filesNamespace}`).on('connection', (socket) => {
-    socket.emit('options:lines', program.lines);
 
-    if (program.uiHideTopbar) {
-      socket.emit('options:hide-topbar');
-    }
-
-    if (!program.uiIndent) {
-      socket.emit('options:no-indent');
-    }
-
-    if (program.uiHighlight) {
-      socket.emit('options:highlightConfig', highlightConfig);
-    }
-
-    tailer.getBuffer().forEach((line) => {
-      socket.emit('line', line);
-    });
-  });
 
   /**
    * Send incoming data
    */
-  tailer.on('line', (line) => {
-    filesSocket.emit('line', line);
-  });
+
 
   stats.track('runtime', 'started');
 
